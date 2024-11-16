@@ -1,0 +1,111 @@
+name: Build-CI
+
+on:
+  workflow_dispatch:
+    inputs:
+      BaseROMLink:
+        description: '底包-指你的设备的官方包'
+        required: true
+      PortROMLink:
+        description: '移植包-指你想要移植的其他设备的官方包'
+        required: true
+permissions: write-all
+
+jobs:
+  OfflineDownload:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Space cleanup and Initialization environment
+        env:
+          DEBIAN_FRONTEND: noninteractive
+        run: |
+          df -h
+          docker rmi `docker images -q`
+          sudo -E rm -rf /usr/share/dotnet /etc/mysql /etc/php /etc/apt/sources.list.d /usr/local/lib/android
+          sudo -E apt-mark hold grub-efi-amd64-signed
+          sudo -E apt -y purge azure-cli* docker* ghc* zulu* llvm* firefox google* dotnet* powershell* openjdk* mysql* php* mongodb* dotnet* snap*
+          sudo -E apt -y autoremove --purge
+          sudo ./setup.sh
+          sudo -E apt clean
+          sudo apt autoclean
+          sudo rm /var/log/*.log
+          sudo rm -rf /tmp/*
+          df -h
+          
+      - name: Build
+        run: sudo ./port.sh ${{ inputs.BaseROMLink }} ${{ inputs.PortROMLink }}
+
+
+      - name: Get download folder name
+        id: get_folder_name
+        working-directory: ${{ github.workspace }}/out
+        run: |
+          zip_file=$(ls *.zip)
+          echo "::set-output name=zip_file::$zip_file"
+
+      - name: Split ZIP into 1.5GB parts
+        working-directory: ${{ github.workspace }}/out
+        run: |
+          zip -s 1536m "${{ steps.get_folder_name.outputs.zip_file }}_Part.zip" "${{ steps.get_folder_name.outputs.zip_file }}"
+          rm -rf ${{ steps.get_folder_name.outputs.zip_file }}
+          ls
+
+      - name: Create Release 📚
+        id: create_release
+        uses: actions/create-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: ${{ github.run_id }}
+          release_name: ${{ github.run_id }}
+          draft: false
+          prerelease: false
+
+      - name: Upload Release Assets📦
+        id: upload_release_assets_1
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: ${{ github.workspace }}/out/${{ steps.get_folder_name.outputs.zip_file }}_Part.zip
+          asset_name: ${{ steps.get_folder_name.outputs.zip_file }}.zip
+          asset_content_type: application/zip
+
+      - name: Upload Release Assets📦
+        id: upload_release_assets_2
+        continue-on-error: true
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: ${{ github.workspace }}/out/${{ steps.get_folder_name.outputs.zip_file }}_Part.z01
+          asset_name: ${{ steps.get_folder_name.outputs.zip_file }}.z01
+          asset_content_type: application/zip
+
+      - name: Upload Release Assets📦
+        id: upload_release_assets_3
+        continue-on-error: true
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: ${{ github.workspace }}/out/${{ steps.get_folder_name.outputs.zip_file }}_Part.z02
+          asset_name: ${{ steps.get_folder_name.outputs.zip_file }}.z02
+          asset_content_type: application/zip
+
+      - name: Upload Release Assets📦
+        id: upload_release_assets_4
+        continue-on-error: true
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: ${{ github.workspace }}/out/${{ steps.get_folder_name.outputs.zip_file }}_Part.z03
+          asset_name: ${{ steps.get_folder_name.outputs.zip_file }}.z03
+          asset_content_type: application/zip
