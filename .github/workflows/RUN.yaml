@@ -12,8 +12,8 @@ on:
 permissions: write-all
 
 jobs:
-  OfflineDownload:
-    runs-on: ubuntu-latest
+  BuildROM:
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
 
@@ -38,7 +38,7 @@ jobs:
         run: sudo ./port.sh ${{ inputs.BaseROMLink }} ${{ inputs.PortROMLink }}
 
 
-      - name: Get download folder name
+      - name: Get ROM folder name
         id: get_folder_name
         working-directory: ${{ github.workspace }}/out
         run: |
